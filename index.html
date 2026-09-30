@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>键盘按键检测专业版</title>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        height: 100vh;
+        background:
+            radial-gradient(circle at 20% 10%, rgba(56, 189, 248, 0.12), transparent 26%),
+            radial-gradient(circle at 80% 20%, rgba(129, 140, 248, 0.10), transparent 28%),
+            #0b0d10;
+        color: #f5f5f7;
+        font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* 顶部栏 */
+    .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 22px 32px;
+        width: 100%;
+    }
+
+    .brand {
+        font-size: 0.9rem;
+        letter-spacing: 0.18em;
+        color: #9ca3af;
+        text-transform: uppercase;
+    }
+
+    .toggle-group {
+        display: flex;
+        gap: 18px;
+    }
+
+    .toggle-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 9px 14px;
+        border-radius: 999px;
+        color: #cfd3dc;
+        font-size: 0.9rem;
+    }
+
+    /* 开关组件 */
+    .toggle {
+        position: relative;
+        width: 44px;
+        height: 24px;
+    }
+
+    .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        inset: 0;
+        background: linear-gradient(180deg, #3a3f47, #272a2f);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        transition: 0.3s ease;
+    }
+
+    .slider::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 2px;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow:
+            0 2px 6px rgba(0, 0, 0, 0.45),
+            0 0 0 1px rgba(0, 0, 0, 0.2);
+        transition: 0.3s ease;
+    }
+
+    input:checked + .slider {
+        background: linear-gradient(180deg, #22d3ee, #6366f1);
+        border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    input:checked + .slider::before {
+        transform: translate(20px, -50%);
+    }
+
+    /* 中央显示区 */
+    .center-box {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        width: min(520px, 92vw);
+    }
+
+    .card {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        padding: 42px 28px;
+        box-shadow:
+            0 30px 80px rgba(0, 0, 0, 0.35),
+            0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+        backdrop-filter: blur(18px);
+    }
+
+    .label {
+        font-size: 0.78rem;
+        letter-spacing: 0.24em;
+        color: #8b90a0;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+    }
+
+    #mainKey {
+        font-size: 4.6rem;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        color: #ffffff;
+        text-shadow:
+            0 0 24px rgba(99, 102, 241, 0.45),
+            0 0 48px rgba(34, 211, 238, 0.25);
+        font-variation-settings: "tnum" 1;
+        font-feature-settings: "tnum";
+    }
+
+    #codeInfo {
+        margin-top: 18px;
+        font-size: 0.95rem;
+        color: #9aa0b4;
+        font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+        min-height: 1.4em;
+    }
+
+    .status-row {
+        margin-top: 22px;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .status-dot {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.8rem;
+        color: #cfd3dc;
+    }
+
+    .status-dot::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #6b7280;
+        box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.14);
+    }
+
+    .status-dot.active::before {
+        background: #22d3ee;
+        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+    }
+
+    .status-dot.blocked::before {
+        background: #a78bfa;
+        box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.18);
+    }
+
+    /* 底部提示 */
+    .footer-tip {
+        position: absolute;
+        bottom: 24px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: #6b7280;
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+    }
+
+    .kbd {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #e5e7eb;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 0.78rem;
+        margin: 0 4px;
+    }
+</style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="brand">Key Tester Pro</div>
+
+        <div class="toggle-group">
+            <div class="toggle-item">
+                <label class="toggle">
+                    <input type="checkbox" id="showCodeSwitch" />
+                    <span class="slider"></span>
+                </label>
+                <span>显示Code信息</span>
+            </div>
+
+            <div class="toggle-item">
+                <label class="toggle">
+                    <input type="checkbox" id="preventDefaultSwitch" />
+                    <span class="slider"></span>
+                </label>
+                <span>拦截浏览器快捷键</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="center-box">
+        <div class="card">
+            <div class="label">当前按键 / Current Key</div>
+            <div id="mainKey">等候按键</div>
+            <div id="codeInfo"></div>
+
+            <div class="status-row">
+                <div class="status-dot" id="statusKey">Key 就绪</div>
+                <div class="status-dot" id="statusCode">Code 就绪</div>
+                <div class="status-dot" id="statusPrevent">拦截未开启</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-tip">
+        提示：拦截效果取决于浏览器版本 · <span class="kbd">F11</span> 全屏、<span class="kbd">F5</span> 刷新、<span class="kbd">F12</span> 开发者工具
+    </div>
+
+    <script>
+        const mainKeyDom = document.getElementById('mainKey');
+        const codeInfoDom = document.getElementById('codeInfo');
+        const showCodeSwitch = document.getElementById('showCodeSwitch');
+        const preventDefaultSwitch = document.getElementById('preventDefaultSwitch');
+
+        const statusKey = document.getElementById('statusKey');
+        const statusCode = document.getElementById('statusCode');
+        const statusPrevent = document.getElementById('statusPrevent');
+
+        function updatePreventStatus() {
+            if (preventDefaultSwitch.checked) {
+                statusPrevent.classList.add('blocked');
+                statusPrevent.textContent = '拦截已开启';
+            } else {
+                statusPrevent.classList.remove('blocked');
+                statusPrevent.textContent = '拦截未开启';
+            }
+        }
+
+        preventDefaultSwitch.addEventListener('change', updatePreventStatus);
+        updatePreventStatus();
+
+        let holdTimer = null;
+
+        document.addEventListener('keydown', function (e) {
+            if (preventDefaultSwitch.checked) {
+                e.preventDefault();
+            }
+
+            mainKeyDom.textContent = `按下：${e.key}`;
+
+            if (showCodeSwitch.checked) {
+                codeInfoDom.textContent = `code: ${e.code} | keyCode: ${e.keyCode}`;
+                statusCode.classList.add('active');
+                statusCode.textContent = 'Code 已显示';
+            } else {
+                codeInfoDom.textContent = '';
+                statusCode.classList.remove('active');
+                statusCode.textContent = 'Code 已隐藏';
+            }
+
+            statusKey.classList.add('active');
+            statusKey.textContent = `Key: ${e.key}`;
+
+            // 长按防抖：持续按住时不再重复刷新主显示
+            if (holdTimer) clearTimeout(holdTimer);
+        });
+
+        document.addEventListener('keyup', function () {
+            mainKeyDom.textContent = '等候按键';
+            codeInfoDom.textContent = '';
+            statusKey.classList.remove('active');
+            statusKey.textContent = 'Key 就绪';
+            statusCode.classList.remove('active');
+            statusCode.textContent = showCodeSwitch.checked ? 'Code 已显示' : 'Code 已隐藏';
+        });
+    </script>
+</body>
+</html>
